@@ -1,7 +1,8 @@
 module.exports = {
 
-    PORT: 3000,
+    ENDPOINT: 'secret',
     CALENDAR_URL: 'http://localhost/Calendar.ics',
     FILENAME: 'calendar.ics',
+    PORT: 3000,
 
 };

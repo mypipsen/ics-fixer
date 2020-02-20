@@ -6,7 +6,6 @@
     "start": "node app.js"
   },
   "dependencies": {
-    "express": "~4.16.1",
-    "needle": "^2.3.2"
+    "express": "~4.16.1"
   }
 }

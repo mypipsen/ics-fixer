@@ -1,5 +1,5 @@
 const express = require('express');
-const needle = require('needle');
+const http = require('http');
 const fs = require('fs');
 const readline = require('readline');
 const env = require('./env');
@@ -9,55 +9,69 @@ const port = env.PORT;
 const calendar = env.CALENDAR_URL;
 const filename = env.FILENAME;
 
-app.get('/', (req, res) => {
+app.get(`/${env.ENDPOINT}`, (req, res) => {
 
-    needle.get(calendar, {output: filename}, (err) => {
+    const file = fs.createWriteStream(filename);
 
-        if (err) {
-            res.status(500).send('Error occurred');
-        }
+    http.get(calendar, (response) => {
+        response.pipe(file);
 
-        const reader = readline.createInterface({
-            input: fs.createReadStream(filename)
-        });
+        file.on('finish', () => {
 
-        let output = '';
-        let event = null;
+            file.close(() => {
 
-        reader.on('line', (line) => {
+                const reader = readline.createInterface({
+                    input: fs.createReadStream(filename)
+                });
 
-            switch (true) {
-                case line === 'BEGIN:VEVENT':
-                    event = line + '\n';
-                    break;
+                let output = '';
+                let event = null;
 
-                case line === 'END:VEVENT':
-                    event += line + '\n';
+                reader.on('line', (line) => {
 
-                    if (event.indexOf('STATUS:Cancelled') === -1) {
-                        output += event;
+                    switch (true) {
+                        case line === 'BEGIN:VEVENT':
+                            event = line + '\n';
+                            break;
+
+                        case line === 'END:VEVENT':
+                            event += line + '\n';
+
+                            if (event.indexOf('STATUS:Cancelled') === -1) {
+                                output += event;
+                            }
+
+                            event = null;
+                            break;
+
+                        case event !== null:
+                            event += line + '\n';
+                            break;
+
+                        default:
+                            output += line + '\n';
+                            break;
                     }
 
-                    event = null;
-                    break;
+                });
 
-                case event !== null:
-                    event += line + '\n';
-                    break;
+                reader.on('close', () => {
+                    res.send(output);
+                });
 
-                default:
-                    output += line + '\n';
-                    break;
-            }
+            });
 
         });
 
-        reader.on('close', () => {
-            res.send(output);
-        });
-
+    }).on('error', (err) => {
+        console.log(err);
+        res.status(500).send('An error occurred');
     });
 
+});
+
+app.get('/*', (req, res) => {
+    res.status(404).send('404 - Calendar not found')
 });
 
 app.listen(port, () => console.log(`ics fixer listening on port ${port}`));
